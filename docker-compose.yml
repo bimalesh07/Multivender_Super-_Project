@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: multivendor_postgres
+    restart: always
+    ports:
+      - "5433:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
