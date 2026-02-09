@@ -1,9 +1,22 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-
 from .models import Product
-from .serializers import ProductCreateSerializer, ProductResponseSerializer
+from .serializers import ProductCreateSerializer, ProductResponseSerializer,ProductResponseSerializer
+
+class PublicProductListView(APIView):
+    """
+    List all approved products for non-logged-in users.
+    """
+    def get(self, request):
+        # Only show products where is_approved is True
+        products = Product.objects.filter(is_approved=True).order_by('-created_at')
+        
+        # Serialize the queryset (many=True because it's a list)
+        serializer = ProductResponseSerializer(products, many=True)
+        
+        # Return the data with a 200 OK status
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class CreateProductView(APIView):
@@ -31,6 +44,7 @@ class CreateProductView(APIView):
         "name": product.name,
         "price": product.price
     }}, status=201)
+
     
     
 class ApproveProductView(APIView):
@@ -54,18 +68,6 @@ class ApproveProductView(APIView):
         return Response({"message": "Product approved"}, status=200)
     
 
-class AdminProductListView(APIView):
-    def get(self, request):
-        user = request.auth_user
-
-        if not user or user.role != "ADMIN":
-            return Response({"error": "Unauthorized"}, status=401)
-
-        products = Product.objects.filter(organization=user.organization)
-        serializer = ProductResponseSerializer(products, many=True)
-
-        return Response(serializer.data, status=200)
-    
 class AdminProductListView(APIView):
     def get(self, request):
         user = request.auth_user
