@@ -7,22 +7,20 @@ from .serializers import AddCartItemSerializer
 
 class AddToCartView(APIView):
     def post(self, request):
-        # FIX 1: Accessing custom user role (Assuming your auth sets request.auth_user)
         user = getattr(request, 'auth_user', None)
-        
-        # FIX 2: Check role correctly (user.role instead of comparing the user object to a string)
+    
         if not user or getattr(user, 'role', None) != "CUSTOMER":
             return Response({"error": "Unauthorized. Customers only."}, status=401)
         
         serializer = AddCartItemSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # FIX 3: Ensure your Serializer field names match exactly (Product_id vs product_id)
         product_id = serializer.validated_data['product_id']
         quantity = serializer.validated_data.get("quantity", 1)
 
         try:
             product = Product.objects.get(id=product_id, is_approved=True)
+
         except (Product.DoesNotExist, ValueError):
             return Response({"error": "Product not found or not approved"}, status=404)
         
@@ -34,6 +32,7 @@ class AddToCartView(APIView):
 
         if not created:
             cart_item.quantity += quantity
+
         else:
             # If created for the first time, ensure quantity is what user requested
             cart_item.quantity = quantity
@@ -45,18 +44,18 @@ class AddToCartView(APIView):
 
 class ViewCartView(APIView):
     def get(self, request):
-        user = getattr(request, 'auth_user', None)
-        if not user or getattr(user, 'role', None) != 'CUSTOMER':
+        user = request.auth_user
+        if not user or user.role != 'CUSTOMER':
              return Response({"error": "Unauthorized"}, status=401)
          
         cart, _ = Cart.objects.get_or_create(user=user)
         items = cart.items.all()
         
-        # FIX 4: Use the @property helpers you wrote in your model!
+        # Use the @property helpers you wrote in your model!
         data = {
             "cart_id": str(cart.id),
-            "total_price": cart.get_cart_total,        # Calls your @property
-            "total_items_count": cart.get_cart_items_count, # Calls your @property
+            "total_price": cart.get_cart_total,        #  @property
+            "total_items_count": cart.get_cart_items_count, # @property
             "items": [
                 {
                     "id": str(item.id),
@@ -64,12 +63,13 @@ class ViewCartView(APIView):
                     "product_name": item.product.name if item.product else "Deleted Product",
                     "price": item.product.price if item.product else 0,
                     "quantity": item.quantity,
-                    "subtotal": item.get_total # Calls your @property in CartItem
+                    "subtotal": item.get_total # @property in CartItem
                 } for item in items
             ]
         }
 
         return Response(data, status=200)
+    
     
 class CartItemDetailView(APIView):
     # --- DELETE: Remove item entirely ---

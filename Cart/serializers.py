@@ -10,3 +10,6 @@ class CartItemResponseSerializer(serializers.Serializer):
     product_id = serializers.UUIDField()
     product_name = serializers.CharField()
     quantity = serializers.IntegerField()
+
+class CartShowSeeializers(serializers.Serializer):
+    pass

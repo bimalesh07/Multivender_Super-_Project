@@ -38,7 +38,7 @@ class CartItem(models.Model):
 
     @property
     def get_total(self):
-        """Calculates price * quantity for this specific line item"""
+        """Calculates price * quantity for this specific  item"""
         if self.product:
             return self.product.price * self.quantity
         return 0
