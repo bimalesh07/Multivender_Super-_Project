@@ -43,7 +43,8 @@ class ViewWishlistView(APIView):
     def get(self, request):
         user = getattr(request, 'auth_user', None)
         if not user or user.role != "CUSTOMER":
-            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "Unauthorized" , },
+             status=status.HTTP_401_UNAUTHORIZED)
 
         # Fetch Data with Optimization
         wishlist_obj, _ = Wishlist.objects.get_or_create(user=user)
