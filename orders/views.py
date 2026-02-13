@@ -35,8 +35,9 @@ class PlaceOrderView(APIView):
                 # 3. Process Items with Stock Locking
                 # select_for_update() locks these rows in the DB so no one else can buy them 
                 # until this transaction finishes.
-                cart_items = cart.items.select_related('product').select_for_update().all()
-
+               # We add .filter(product__isnull=False)
+                cart_items = cart.items.select_related('product').filter(product__isnull=False).select_for_update()
+                
                 for item in cart_items:
                     product = item.product
                     

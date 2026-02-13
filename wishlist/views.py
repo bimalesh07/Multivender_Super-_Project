@@ -36,7 +36,12 @@ class AddToWishlistView(APIView):
             return Response({"message": "Product is already in your wishlist"}, status=status.HTTP_200_OK)
         
         return Response({
-         "message": f"'{product.name}' added to wishlist successfully"
+         "message": 
+         f"'{
+             product.name,
+             product.description 
+                        
+            }' added to wishlist successfully"
         }, status=status.HTTP_201_CREATED)
 
 class ViewWishlistView(APIView):
