@@ -32,6 +32,7 @@ class AddToCartView(APIView):
         try:
             existing_item = CartItem.objects.get(cart=cart, product=product)
             future_quantity = existing_item.quantity + quantity
+            
         except CartItem.DoesNotExist:
             future_quantity = quantity
 
