@@ -9,10 +9,12 @@ class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sku = models.CharField(max_length=50, unique=True, null=True, blank=True, help_text="Stock Keeping Unit")
     
-    # --- Basic Info ---
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     thumbnail = models.ImageField(upload_to='products/thumbnails/', null=True, blank=True)
+    manufacturer = models.CharField(max_length=255, null=True, blank=True)
+    material = models.CharField(max_length=255, null=True, blank=True)
+    product_type = models.CharField(max_length=255, null=True, blank=True)
     
     # --- Pricing ---
     # FIX 1: Added default=0.00 so migration doesn't crash on existing rows

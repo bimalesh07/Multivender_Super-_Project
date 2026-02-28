@@ -23,10 +23,10 @@ class AddToWishlistView(APIView):
         except Product.DoesNotExist:
             return Response({"error": "Product not found or not approved"}, status=status.HTTP_404_NOT_FOUND)
 
-        #  Wishlist Logic (Container -> Item)
+        #  Wishlist Logic 
         wishlist_obj, _ = Wishlist.objects.get_or_create(user=user)
         
-        # item added
+        #item added
         item, created = WishlistItem.objects.get_or_create(
             wishlist=wishlist_obj, 
             product=product
@@ -44,6 +44,8 @@ class AddToWishlistView(APIView):
             }' added to wishlist successfully"
         }, status=status.HTTP_201_CREATED)
 
+
+
 class ViewWishlistView(APIView):
     def get(self, request):
         user = getattr(request, 'auth_user', None)
@@ -51,11 +53,9 @@ class ViewWishlistView(APIView):
             return Response({"error": "Unauthorized" , },
              status=status.HTTP_401_UNAUTHORIZED)
 
-        # Fetch Data with Optimization
         wishlist_obj, _ = Wishlist.objects.get_or_create(user=user)
         items = wishlist_obj.items.all().select_related('product')
 
-        # Response Formatting (Using Serializer)
         serializer = WishlistItemSerializer(items, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

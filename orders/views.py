@@ -1,95 +1,105 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.db import transaction, DatabaseError
+from .serializers import PlaceOrderSerializer, OrderSerializer,OrderListSerializer
+from django.db import transaction
 from django.shortcuts import get_object_or_404
-from Cart.models import Cart
-from .models import Order, OrderItem
+from .models import Order
 
 class PlaceOrderView(APIView):
     def post(self, request):
-        # 1. Authentication Check
         user = getattr(request, 'auth_user', None)
         if not user or getattr(user, 'role', None) != "CUSTOMER":
-            return Response({"error": "Unauthorized. Only customers can place orders."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "Unauthorized. Customers only."}, status=status.HTTP_401_UNAUTHORIZED)
+        serializer = PlaceOrderSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            try:
+                order = serializer.save()
+                response_serializer = OrderSerializer(order)
+                return Response({
+                    "message": "Order placed successfully",
+                    "order": response_serializer.data
+                }, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class OrderDetailView(APIView):
+    def get_object(self, pk, user):
+        return get_object_or_404(Order, pk=pk, user=user)
 
-        try:
-            cart = Cart.objects.get(user=user)
-            # Optimization: distinct() avoids duplicates if join logic gets complex later
-            if not cart.items.exists():
-                return Response({"error": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request, pk):
+        user = getattr(request, 'auth_user', None)
+        if not user:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+        order = self.get_object(pk, user)
+        serializer = OrderSerializer(order)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-            # 2. START ATOMIC TRANSACTION
-            # This ensures that if ANY product is out of stock, the whole order fails.
-            with transaction.atomic():
-                # Create the Order Shell
-                # We calculate the final total inside the loop to be 100% accurate
-                order = Order.objects.create(
-                    user=user,
-                    total_amount=0, 
-                    status='PENDING' 
-                )
-                
-                final_order_total = 0
-
-                # 3. Process Items with Stock Locking
-                # select_for_update() locks these rows in the DB so no one else can buy them 
-                # until this transaction finishes.
-               # We add .filter(product__isnull=False)
-                cart_items = cart.items.select_related('product').filter(product__isnull=False).select_for_update()
-                
-                for item in cart_items:
-                    product = item.product
-                    
-                    # --- A. Check Stock ---
-                    if product.stock < item.quantity:
-                        # This raises an error that rolls back the transaction automatically
-                        raise ValueError(f"Out of stock: {product.name}. Only {product.stock} left.")
-                    
-                    # --- B. Deduct Stock ---
-                    product.stock -= item.quantity
-                    # Auto-update the is_in_stock boolean (handled in Product.save())
-                    product.save()
-
-                    # --- C. Determine Final Price ---
-                    # Use the property we created earlier to get the DISCOUNTED price
-                    price_at_purchase = product.current_price 
-
-                    # --- D. Create Order Item Snapshot ---
-                    OrderItem.objects.create(
-                        order=order,
-                        product=product,
-                        product_name=product.name,
-                        product_sku=product.sku,  # Crucial for warehouse
-                        price=price_at_purchase,  # Save the price the user actually paid
-                        quantity=item.quantity
-                    )
-
-                    # Add to running total
-                    final_order_total += price_at_purchase * item.quantity
-
-                # 4. Finalize Order
-                order.total_amount = final_order_total
-                order.save()
-
-                # 5. Empty the Cart
-                cart.items.all().delete()
-
-            # 6. Success Response
+    def patch(self, request, pk):
+        user = getattr(request, 'auth_user', None)
+        if not user:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+        order = self.get_object(pk, user)
+        action = request.data.get('action')
+        if action != 'cancel':
+            return Response({"error": "Invalid action. Use 'cancel'."}, status=status.HTTP_400_BAD_REQUEST)
+        if order.status not in ['PENDING', 'PROCESSING']:
             return Response({
-                "message": "Order placed successfully",
-                "order_id": str(order.id),
-                "total_amount": final_order_total,
-                "status": order.status
-            }, status=status.HTTP_201_CREATED)
-
-        except Cart.DoesNotExist:
-            return Response({"error": "Cart not found"}, status=status.HTTP_404_NOT_FOUND)
-            
-        except ValueError as e:
-            # Handles our custom "Out of stock" error
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            
+                "error": f"Cannot cancel order. It is already {order.status}."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            with transaction.atomic():
+                for item in order.items.all():
+                    if item.product:
+                        item.product.stock += item.quantity
+                        item.product.save()
+                order.status = 'CANCELLED'
+                order.save()
+            return Response({
+                "message": "Order cancelled successfully. Stock has been restored.",
+                "status": "CANCELLED"
+            }, status=status.HTTP_200_OK)
         except Exception as e:
-            # Handles database errors or unexpected crashes
-            return Response({"error": f"Order failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class AdminOrderListView(APIView):
+    def get(self, request):
+        user = getattr(request, 'auth_user', None)
+        if not user or getattr(user, 'role', None) not in ('ADMIN', 'STAFF', 'SUPERUSER'):
+            return Response({"error": "Unauthorized. Admin or Staff only."}, status=403)
+        orders = Order.objects.select_related('user').prefetch_related('items').order_by('-created_at')
+        serializer = OrderListSerializer(orders, many=True)
+        return Response({"orders": serializer.data}, status=status.HTTP_200_OK)
+
+
+class AdminUpdateOrderStatusView(APIView):
+    def patch(self, request, pk):
+        user = getattr(request, 'auth_user', None)
+        if not user or getattr(user, 'role', None) not in ('ADMIN', 'STAFF', 'SUPERUSER'):
+            return Response({"error": "Unauthorized. Admin or Staff only."}, status=403)
+        order = get_object_or_404(Order, pk=pk)
+        new_status = request.data.get("status")
+        if new_status not in ['PENDING', 'SHIPPED', 'DELIVERED', 'CANCELLED']:
+            return Response({"error": "Invalid status"}, status=400)
+        order.status = new_status
+        order.save()
+        return Response({
+            "message": f"Order status updated to {new_status}",
+            "order_id": order.id,
+            "current_status": order.status
+        })
+    
+
+class OrderHistoryView(APIView):
+    def get(self, request):
+        user = getattr(request, 'auth_user', None)
+        if not user:
+            return Response({"error": "Unauthorized. Please login."}, status=status.HTTP_401_UNAUTHORIZED)
+        orders = Order.objects.filter(user=user).order_by('-created_at')
+        serializer = OrderListSerializer(orders, many=True)
+        data = serializer.data
+        if not data:
+            return Response({"message": "You have no past orders.", "orders": []}, status=status.HTTP_200_OK)
+        return Response({"orders": data}, status=status.HTTP_200_OK)

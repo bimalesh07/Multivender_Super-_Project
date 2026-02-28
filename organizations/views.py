@@ -28,7 +28,7 @@ class CreateOrganizationView(APIView):
         if User.objects.filter(email=admin_email).exists():
             return Response({"error": "Admin email already exists"}, status=400)
 
-        #  Create Organization
+        # Create Organization
         organization = Organization.objects.create(name=org_name)
 
         # Create Admin linked to Organization

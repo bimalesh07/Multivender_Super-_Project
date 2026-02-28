@@ -8,7 +8,7 @@ class JWTAuthenticationMiddleware:
 
     def __call__(self, request):
 
-        # Allow admin panel to work without JWT
+        # Allow admin panel to work 
         if request.path.startswith("/admin"):
             return self.get_response(request)
 

@@ -2,30 +2,33 @@ import uuid
 from django.db import models
 from accounts.models import User
 from products.models import Product
+from address.models import Address
 
 class Order(models.Model):
-    # --- Status Choices ---
     STATUS_CHOICES = (
-        ('PENDING', 'Pending'),      # Order placed, not processed
-        ('PROCESSING', 'Processing'), # Warehouse is packing it
-        ('SHIPPED', 'Shipped'),      # Handed to courier
-        ('DELIVERED', 'Delivered'),  # Customer has it
-        ('CANCELLED', 'Cancelled'),  # Stock issue or user request
+        ('PENDING', 'Pending'),      
+        ('SHIPPED', 'Shipped'),     
+        ('DELIVERED', 'Delivered'), 
+        ('CANCELLED', 'Cancelled'),  
     )
-
+    PAYMENT_METHOD_CHOICES = (
+        ('UPI', 'UPI'),
+        ('CASH_ON_DELIVERY', 'Cash on Delivery'),
+    )
+    shipping_address = models.ForeignKey(
+        Address, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
-    
-    # --- Financials ---
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    is_paid = models.BooleanField(default=False) # Integration with Payment Gateway
-    
-    # --- Logistics ---
+    is_paid = models.BooleanField(default=False)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='CASH_ON_DELIVERY')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    
-    # --- Timestamps ---
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True) # Tracks when status changes
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']

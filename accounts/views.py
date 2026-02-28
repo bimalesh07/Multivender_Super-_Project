@@ -36,7 +36,6 @@ class UserLoginView(APIView):
 
         try:
             user = User.objects.get(email=email)
-            print("user",user)
         except User.DoesNotExist:
             return Response({"error": "Invalid credentials User Does Not Exist "}, status=401)
 
@@ -44,15 +43,15 @@ class UserLoginView(APIView):
             return Response({"error": "Invalid credentials"}, status=401)
     
         token = generate_jwt(user)
-
-        return Response({"token": token, "role": user.role}, status=200)
+        payload = {"token": token, "role": user.role, "email": user.email}
+        if getattr(user, "organization", None):
+            payload["organization_name"] = user.organization.name
+        return Response(payload, status=200)
     
 
 class CreateStaffView(APIView):
     def post(self, request):
         admin = request.auth_user
-
-        # Only ADMIN can create staff
         if not admin or admin.role != "ADMIN":
             return Response({"error": "Unauthorized"}, status=401)
 
@@ -80,3 +79,17 @@ class CreateStaffView(APIView):
             "staff_id": str(staff.id),
             "organization": admin.organization.name
         }, status=201)
+
+
+class UserProfileView(APIView):
+    def get(self, request):
+        user = request.auth_user
+        if not user:
+            return Response({"error": "Unauthorized"}, status=401)
+        return Response({
+            "id": str(user.id),
+            "email": user.email,
+            "role": user.role,
+            "organization": user.organization.name if user.organization else None,
+            "created_at": user.created_at.isoformat() if hasattr(user, 'created_at') else None
+        }, status=200)

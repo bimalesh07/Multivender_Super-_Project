@@ -3,7 +3,8 @@ from django.shortcuts import get_object_or_404
 from .models import Cart, CartItem
 from products.models import Product
 
-# --- 1. RESPONSE SERIALIZER (For Viewing Cart) ---
+
+#RESPONSE SERIALIZER (For Viewing Cart)
 class CartItemResponseSerializer(serializers.ModelSerializer):
     product_id = serializers.UUIDField(source='product.id')
     product_name = serializers.CharField(source='product.name')
@@ -17,7 +18,6 @@ class CartItemResponseSerializer(serializers.ModelSerializer):
     
     # Stock Warning Logic
     is_stock_problem = serializers.SerializerMethodField()
-
     class Meta:
         model = CartItem
         fields = [
@@ -31,7 +31,8 @@ class CartItemResponseSerializer(serializers.ModelSerializer):
         return obj.quantity > obj.product.stock
 
 
-# --- 2. ADD TO CART SERIALIZER (For POST) ---
+#ADD TO CART SERIALIZER (For POST)
+
 class AddCartItemSerializer(serializers.Serializer):
     product_id = serializers.UUIDField()
     quantity = serializers.IntegerField(default=1)
@@ -39,21 +40,30 @@ class AddCartItemSerializer(serializers.Serializer):
     def validate(self, data):
         """
         Validates Product existence AND Stock availability.
+        Uses custom 'auth_user' from the request context.
         """
-        product_id = data['product_id']
+        #GET USER (The Fix) ---
+        request = self.context.get('request')
+        user = getattr(request, 'auth_user', None)
+
+        if not user:
+            raise serializers.ValidationError("Authentication required. Please login.")
+
+        #BASIC VALIDATION ---
         quantity = data['quantity']
-        user = self.context['request'].user # Get user from View
+        product_id = data['product_id']
 
         if quantity < 1:
             raise serializers.ValidationError("Quantity must be at least 1")
 
-        # 1. Fetch Product
+        #FETCH PRODUCT ---
         try:
             product = Product.objects.get(id=product_id, is_approved=True, is_active=True)
         except Product.DoesNotExist:
             raise serializers.ValidationError("Product not found or unavailable.")
 
-        # 2. Stock Check (Logic moved from View to here)
+        # STOCK CHECK LOGIC ---
+        # Now we use the real 'user' object we found above
         cart, _ = Cart.objects.get_or_create(user=user)
         
         # Calculate Future Quantity
@@ -68,7 +78,7 @@ class AddCartItemSerializer(serializers.Serializer):
                 f"Insufficient stock. Only {product.stock} units available."
             )
 
-        # Pass objects to .create() so we don't fetch them again
+        # Pass objects to .create() so don't fetch them again
         data['product'] = product
         data['cart'] = cart
         return data
@@ -91,11 +101,10 @@ class AddCartItemSerializer(serializers.Serializer):
         cart_item.save()
         return cart_item
 
+# UPDATE QUANTITY SERIALIZER (For PATCH)
 
-# --- 3. UPDATE QUANTITY SERIALIZER (For PATCH) ---
 class UpdateCartItemSerializer(serializers.ModelSerializer):
     quantity = serializers.IntegerField()
-
     class Meta:
         model = CartItem
         fields = ['quantity']
