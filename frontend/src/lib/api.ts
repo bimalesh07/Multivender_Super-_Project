@@ -1,5 +1,13 @@
 const API_BASE = '/api/v1';
 
+// Paginated response type from DRF
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 function getToken(): string | null {
   return localStorage.getItem('token');
 }
@@ -83,7 +91,9 @@ export const authApi = {
 export const productsApi = {
   list: (search?: string) => {
     const url = search ? `${API_BASE}/products/public/?search=${encodeURIComponent(search)}` : `${API_BASE}/products/public/`;
-    return fetch(url, { headers: getAuthHeaders() }).then(handleResponse<Product[]>);
+    return fetch(url, { headers: getAuthHeaders() })
+      .then(handleResponse<PaginatedResponse<Product>>)
+      .then(res => res.results);
   },
   get: (productId: string) =>
     fetch(`${API_BASE}/products/public/${productId}/`, { headers: getAuthHeaders() }).then(
@@ -116,9 +126,9 @@ export interface CreateProductForm {
 
 export const adminProductsApi = {
   list: () =>
-    fetch(`${API_BASE}/products/admin-list/`, { headers: getAuthHeaders() }).then(
-      handleResponse<Product[]>
-    ),
+    fetch(`${API_BASE}/products/admin-list/`, { headers: getAuthHeaders() })
+      .then(handleResponse<PaginatedResponse<Product>>)
+      .then(res => res.results),
   create: (form: CreateProductForm) => {
     const body = new FormData();
     body.append('name', form.name);
@@ -195,9 +205,9 @@ export const cartApi = {
 // Addresses
 export const addressApi = {
   list: () =>
-    fetch(`${API_BASE}/address/create/`, { headers: getAuthHeaders() }).then(
-      handleResponse<Address[]>
-    ),
+    fetch(`${API_BASE}/address/create/`, { headers: getAuthHeaders() })
+      .then(handleResponse<PaginatedResponse<Address>>)
+      .then(res => res.results),
   create: (body: Omit<Address, 'id' | 'user' | 'created_at'>) =>
     fetch(`${API_BASE}/address/create/`, {
       method: 'POST',
@@ -224,16 +234,16 @@ export const ordersApi = {
       body: JSON.stringify({ address_id, payment_method }),
     }).then(handleResponse<{ message: string; order: Order }>),
   history: () =>
-    fetch(`${API_BASE}/orders/history/`, { headers: getAuthHeaders() }).then(
-      handleResponse<{ orders: OrderListItem[] }>
-    ),
+    fetch(`${API_BASE}/orders/history/`, { headers: getAuthHeaders() })
+      .then(handleResponse<PaginatedResponse<OrderListItem>>)
+      .then(res => ({ orders: res.results })),
 };
 
 export const adminOrdersApi = {
   list: () =>
-    fetch(`${API_BASE}/orders/admin/list/`, { headers: getAuthHeaders() }).then(
-      handleResponse<{ orders: OrderListItem[] }>
-    ),
+    fetch(`${API_BASE}/orders/admin/list/`, { headers: getAuthHeaders() })
+      .then(handleResponse<PaginatedResponse<OrderListItem>>)
+      .then(res => ({ orders: res.results })),
   updateStatus: (orderId: string, status: string) =>
     fetch(`${API_BASE}/orders/admin/update-status/${orderId}/`, {
       method: 'PATCH',

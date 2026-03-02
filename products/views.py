@@ -2,6 +2,7 @@ from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from .models import Product, ProductImage
 from .serializers import ProductSerializer, PublicProductListSerializer
 
@@ -13,8 +14,12 @@ class PublicProductListView(APIView):
             if search_query:
                 products = products.filter(Q(name__icontains=search_query) | Q(description__icontains=search_query))
             products = products.order_by('-created_at')
-            serializer = PublicProductListSerializer(products, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+
+            # Pagination
+            paginator = PageNumberPagination()
+            paginated_products = paginator.paginate_queryset(products, request)
+            serializer = PublicProductListSerializer(paginated_products, many=True)
+            return paginator.get_paginated_response(serializer.data)
         except Exception as e:
             from django.conf import settings
             detail = str(e) if getattr(settings, 'DEBUG', False) else 'Failed to load products'
@@ -87,9 +92,12 @@ class AdminProductListView(APIView):
             return Response({"error": "No organization"}, status=403)
 
         products = Product.objects.filter(organization=user.organization).order_by('-created_at')
-        serializer = ProductSerializer(products, many=True)
 
-        return Response(serializer.data, status=200)
+        # Pagination
+        paginator = PageNumberPagination()
+        paginated_products = paginator.paginate_queryset(products, request)
+        serializer = ProductSerializer(paginated_products, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 class ApprovedProductList(APIView):
     def get(self, request):

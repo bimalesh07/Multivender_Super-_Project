@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from .serializers import PlaceOrderSerializer, OrderSerializer,OrderListSerializer
 from django.db import transaction
 from django.shortcuts import get_object_or_404
@@ -70,8 +71,12 @@ class AdminOrderListView(APIView):
         if not user or getattr(user, 'role', None) not in ('ADMIN', 'STAFF', 'SUPERUSER'):
             return Response({"error": "Unauthorized. Admin or Staff only."}, status=403)
         orders = Order.objects.select_related('user').prefetch_related('items').order_by('-created_at')
-        serializer = OrderListSerializer(orders, many=True)
-        return Response({"orders": serializer.data}, status=status.HTTP_200_OK)
+
+        # Pagination
+        paginator = PageNumberPagination()
+        paginated_orders = paginator.paginate_queryset(orders, request)
+        serializer = OrderListSerializer(paginated_orders, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class AdminUpdateOrderStatusView(APIView):
@@ -98,8 +103,11 @@ class OrderHistoryView(APIView):
         if not user:
             return Response({"error": "Unauthorized. Please login."}, status=status.HTTP_401_UNAUTHORIZED)
         orders = Order.objects.filter(user=user).order_by('-created_at')
-        serializer = OrderListSerializer(orders, many=True)
-        data = serializer.data
-        if not data:
+        if not orders.exists():
             return Response({"message": "You have no past orders.", "orders": []}, status=status.HTTP_200_OK)
-        return Response({"orders": data}, status=status.HTTP_200_OK)
+
+        # Pagination
+        paginator = PageNumberPagination()
+        paginated_orders = paginator.paginate_queryset(orders, request)
+        serializer = OrderListSerializer(paginated_orders, many=True)
+        return paginator.get_paginated_response(serializer.data)
