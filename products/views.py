@@ -178,3 +178,41 @@ class AdminProductDetailView(APIView):
         product.delete()
         logger.info("Product deleted: '%s' (ID: %s) by %s", product_name, product_id, user.email)
         return Response({"message": f"Product '{product_name}' deleted successfully"}, status=200)
+
+
+class ApprovedProductList(APIView):
+    def get(self, request):
+        user = request.auth_user
+        if not user or user.role not in ("ADMIN", "STAFF"):
+            return Response({"error": "Unauthorized"}, status=401)
+
+        products = Product.objects.filter(
+            organization=user.organization,
+            is_approved=True
+        ).order_by('-created_at')
+
+        paginator = PageNumberPagination()
+        paginated_products = paginator.paginate_queryset(products, request)
+        serializer = ProductSerializer(paginated_products, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
+class RelatedProductsView(APIView):
+    def get(self, request, product_id):
+        try:
+            product = Product.objects.get(id=product_id, is_approved=True, is_active=True)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        related = Product.objects.filter(
+            is_approved=True,
+            is_active=True,
+            organization=product.organization
+        ).exclude(id=product.id).order_by('-created_at')[:5]
+
+        serializer = PublicProductListSerializer(related, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+EditProductView = AdminProductDetailView
+DeleteProductView = AdminProductDetailView
