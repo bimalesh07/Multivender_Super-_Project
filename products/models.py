@@ -5,7 +5,6 @@ from organizations.models import Organization
 from accounts.models import User
 
 class Product(models.Model):
-    # --- Identity ---
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     sku = models.CharField(max_length=50, unique=True, null=True, blank=True, help_text="Stock Keeping Unit")
     
@@ -16,21 +15,15 @@ class Product(models.Model):
     material = models.CharField(max_length=255, null=True, blank=True)
     product_type = models.CharField(max_length=255, null=True, blank=True)
     
-    # --- Pricing ---
-    # FIX 1: Added default=0.00 so migration doesn't crash on existing rows
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) 
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
-    # --- Inventory ---
     stock = models.PositiveIntegerField(default=0)
     is_in_stock = models.BooleanField(default=True)
     
-    # --- Status & Control ---
     is_active = models.BooleanField(default=True) 
     is_approved = models.BooleanField(default=False)
     
-    # --- Relationships ---
-    # FIX 2: Added null=True, blank=True. This fixes the "Select an option" error.
     organization = models.ForeignKey(
         Organization, 
         on_delete=models.CASCADE, 
@@ -45,7 +38,6 @@ class Product(models.Model):
         related_name='created_products'
     )
 
-    # --- Timestamps ---
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -55,8 +47,6 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.name} ({self.sku})"
 
-    # --- Professional Logic Methods ---
-
     @property
     def current_price(self):
         """Returns the best price available for the customer."""
@@ -65,17 +55,14 @@ class Product(models.Model):
         return self.price
 
     def save(self, *args, **kwargs):
-        """Custom save logic to handle stock status and SKU generation."""
-        # 1. Automatically update stock status
+        """Custom save logic to handle stock status and price validation."""
         self.is_in_stock = self.stock > 0
         
-        # 2. Basic Validation: Discount cannot be higher than original price
         if self.discount_price and self.discount_price >= self.price:
             raise ValidationError("Discount price must be lower than the original price.")
             
         super().save(*args, **kwargs)
 
-# --- Multiple Images for Gallery ---
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='products/gallery/')

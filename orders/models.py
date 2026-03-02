@@ -42,12 +42,9 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
     
-    # --- Snapshots (Freezing History) ---
-    # We save these text fields so if the Product is deleted later, 
-    # the Order history still looks correct.
     product_name = models.CharField(max_length=255)
-    product_sku = models.CharField(max_length=50, null=True) # NEW: Helps warehouse find items
-    price = models.DecimalField(max_digits=10, decimal_places=2) # The price AT MOMENT of purchase
+    product_sku = models.CharField(max_length=50, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     
     quantity = models.PositiveIntegerField(default=1)
 

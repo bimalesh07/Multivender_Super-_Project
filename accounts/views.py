@@ -1,3 +1,4 @@
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -5,6 +6,8 @@ from .models import User
 from .utils import hash_password, verify_password
 from .jwt import generate_jwt
 from .serializers import UserRegisterSerializer, UserLoginSerializer, StaffCreateSerializer
+
+logger = logging.getLogger(__name__)
 
 class UserRegisterView(APIView):
     def post(self, request):
@@ -15,6 +18,7 @@ class UserRegisterView(APIView):
         password = serializer.validated_data['password']
 
         if User.objects.filter(email=email).exists():
+            logger.warning("Registration failed: email %s already exists", email)
             return Response({"error": "Email already exists"}, status=400)
 
         user = User.objects.create(
@@ -22,6 +26,7 @@ class UserRegisterView(APIView):
             password=hash_password(password),
             role="CUSTOMER"
         )
+        logger.info("New user registered: %s (ID: %s)", email, user.id)
         return Response({"message": "User registered successfully", "user_id": str(user.id)}, status=201)
     
 
@@ -37,12 +42,15 @@ class UserLoginView(APIView):
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
+            logger.warning("Login failed: user %s not found", email)
             return Response({"error": "Invalid credentials User Does Not Exist "}, status=401)
 
         if not verify_password(password, user.password):
+            logger.warning("Login failed: invalid password for %s", email)
             return Response({"error": "Invalid credentials"}, status=401)
     
         token = generate_jwt(user)
+        logger.info("User logged in: %s (role: %s)", email, user.role)
         payload = {"token": token, "role": user.role, "email": user.email}
         if getattr(user, "organization", None):
             payload["organization_name"] = user.organization.name
@@ -74,6 +82,7 @@ class CreateStaffView(APIView):
             organization=admin.organization
         )
 
+        logger.info("Staff created: %s by admin %s (org: %s)", email, admin.email, admin.organization.name)
         return Response({
             "message": "Staff created successfully",
             "staff_id": str(staff.id),

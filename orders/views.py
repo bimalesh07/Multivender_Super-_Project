@@ -1,11 +1,14 @@
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
-from .serializers import PlaceOrderSerializer, OrderSerializer,OrderListSerializer
+from .serializers import PlaceOrderSerializer, OrderSerializer, OrderListSerializer
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from .models import Order
+
+logger = logging.getLogger(__name__)
 
 class PlaceOrderView(APIView):
     def post(self, request):
@@ -16,12 +19,14 @@ class PlaceOrderView(APIView):
         if serializer.is_valid():
             try:
                 order = serializer.save()
+                logger.info("Order placed: #%s by %s — ₹%s", str(order.id)[:8], user.email, order.total_amount)
                 response_serializer = OrderSerializer(order)
                 return Response({
                     "message": "Order placed successfully",
                     "order": response_serializer.data
                 }, status=status.HTTP_201_CREATED)
             except Exception as e:
+                logger.error("Order failed for %s: %s", user.email, str(e))
                 return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -57,12 +62,14 @@ class OrderDetailView(APIView):
                         item.product.save()
                 order.status = 'CANCELLED'
                 order.save()
+            logger.info("Order cancelled: #%s by %s — stock restored", str(order.id)[:8], user.email)
             return Response({
                 "message": "Order cancelled successfully. Stock has been restored.",
                 "status": "CANCELLED"
             }, status=status.HTTP_200_OK)
         except Exception as e:
-             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error("Order cancellation failed for #%s: %s", str(pk)[:8], str(e))
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
 class AdminOrderListView(APIView):
@@ -72,7 +79,6 @@ class AdminOrderListView(APIView):
             return Response({"error": "Unauthorized. Admin or Staff only."}, status=403)
         orders = Order.objects.select_related('user').prefetch_related('items').order_by('-created_at')
 
-        # Pagination
         paginator = PageNumberPagination()
         paginated_orders = paginator.paginate_queryset(orders, request)
         serializer = OrderListSerializer(paginated_orders, many=True)
@@ -90,6 +96,7 @@ class AdminUpdateOrderStatusView(APIView):
             return Response({"error": "Invalid status"}, status=400)
         order.status = new_status
         order.save()
+        logger.info("Order #%s status updated to %s by admin %s", str(pk)[:8], new_status, user.email)
         return Response({
             "message": f"Order status updated to {new_status}",
             "order_id": order.id,
@@ -106,7 +113,6 @@ class OrderHistoryView(APIView):
         if not orders.exists():
             return Response({"message": "You have no past orders.", "orders": []}, status=status.HTTP_200_OK)
 
-        # Pagination
         paginator = PageNumberPagination()
         paginated_orders = paginator.paginate_queryset(orders, request)
         serializer = OrderListSerializer(paginated_orders, many=True)

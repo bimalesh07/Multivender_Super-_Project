@@ -16,7 +16,6 @@ class User(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # Admin & Staff will later link to Organization
     organization = models.ForeignKey(
         "organizations.Organization",
         on_delete=models.SET_NULL,

@@ -1,3 +1,4 @@
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -9,24 +10,23 @@ from .serializers import (
     UpdateCartItemSerializer
 )
 
+logger = logging.getLogger(__name__)
+
 class AddToCartView(APIView):
     def post(self, request):
-        # Auth Check
         user = getattr(request, 'auth_user', None)
         if not user or getattr(user, 'role', None) != "CUSTOMER":
             return Response({"error": "Unauthorized. Customers only."}, status=401)
-        
 
-        # pass 'context' so the serializer can access the user securely
         serializer = AddCartItemSerializer(data=request.data, context={'request': request})
         
         if serializer.is_valid():
-            cart_item = serializer.save() # Calls create() in serializer
+            cart_item = serializer.save()
+            logger.info("Cart item added: product %s, qty %d by %s", cart_item.product.name, cart_item.quantity, user.email)
             
             return Response({
                 "message": "Product added to cart", 
                 "current_quantity": cart_item.quantity,
-                # Model has a property named 'subtotal' or 'get_total'
                 "subtotal": getattr(cart_item, 'subtotal', 0) 
             }, status=201)
             
@@ -60,6 +60,7 @@ class CartItemDetailView(APIView):
 
         try:
             cart_item = CartItem.objects.get(id=item_id, cart__user=user)
+            logger.info("Cart item removed: %s by %s", item_id, user.email)
             cart_item.delete()
             return Response({"message": "Item removed"}, status=204)
         except CartItem.DoesNotExist:
@@ -75,11 +76,11 @@ class CartItemDetailView(APIView):
         except CartItem.DoesNotExist:
             return Response({"error": "Item not found"}, status=404)
 
-        # Pass the instance so the serializer knows for updating
         serializer = UpdateCartItemSerializer(cart_item, data=request.data, partial=True)
 
         if serializer.is_valid():
             updated_item = serializer.save() 
+            logger.info("Cart item updated: %s, new qty %d by %s", item_id, updated_item.quantity, user.email)
             
             return Response({
                 "message": "Quantity updated",

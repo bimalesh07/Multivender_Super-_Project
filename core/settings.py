@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
     'organizations',
     'accounts',
     'products',
@@ -155,4 +156,53 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '20/minute',
+        'user': '60/minute',
+    },
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Multi-Vendor E-Commerce API',
+    'DESCRIPTION': 'RESTful API for a Multi-Vendor E-Commerce Platform with Role-Based Access Control, JWT Authentication, and complete order management.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name} - {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'app.log',
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'accounts': {'handlers': ['console', 'file'], 'level': 'INFO'},
+        'products': {'handlers': ['console', 'file'], 'level': 'INFO'},
+        'Cart': {'handlers': ['console', 'file'], 'level': 'INFO'},
+        'orders': {'handlers': ['console', 'file'], 'level': 'INFO'},
+        'wishlist': {'handlers': ['console', 'file'], 'level': 'INFO'},
+        'address': {'handlers': ['console', 'file'], 'level': 'INFO'},
+        'organizations': {'handlers': ['console', 'file'], 'level': 'INFO'},
+    },
 }
