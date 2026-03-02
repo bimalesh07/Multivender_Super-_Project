@@ -168,7 +168,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Multi-Vendor E-Commerce API',
+    'TITLE': 'Multi-Vendor  API',
     'DESCRIPTION': 'RESTful API for a Multi-Vendor E-Commerce Platform with Role-Based Access Control, JWT Authentication, and complete order management.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,

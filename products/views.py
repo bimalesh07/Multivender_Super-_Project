@@ -23,8 +23,10 @@ class PublicProductListView(APIView):
             paginated_products = paginator.paginate_queryset(products, request)
             serializer = PublicProductListSerializer(paginated_products, many=True)
             return paginator.get_paginated_response(serializer.data)
+
         except Exception as e:
             logger.error("Failed to load products: %s", str(e))
+
             from django.conf import settings
             detail = str(e) if getattr(settings, 'DEBUG', False) else 'Failed to load products'
             return Response({'error': detail}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -159,6 +161,7 @@ class AdminProductDetailView(APIView):
         product.save()
 
         logger.info("Product updated: '%s' (ID: %s) by %s", product.name, product.id, user.email)
+        
         return Response({
             "message": "Product updated successfully",
             "product": ProductSerializer(product).data
