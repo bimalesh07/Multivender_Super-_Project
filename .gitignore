@@ -11,3 +11,4 @@ logs/
 media/
 .venv/
 node_modules/
+BACKEND_I_P.md
