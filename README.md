@@ -1,6 +1,6 @@
 # Multi-Vendor E-Commerce Platform
 
-A backend API for a multi-vendor e-commerce system where multiple organizations can sell products through a single platform. Built with Django and Django REST Framework.
+A backend API for a multi-vendor where multiple organizations can sell products through a single platform. Built with Django and Django REST Framework.
 
 ## Tech Stack
 
