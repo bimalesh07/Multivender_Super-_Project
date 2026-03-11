@@ -103,7 +103,6 @@ class AdminUpdateOrderStatusView(APIView):
             "current_status": order.status
         })
     
-
 class OrderHistoryView(APIView):
     def get(self, request):
         user = getattr(request, 'auth_user', None)

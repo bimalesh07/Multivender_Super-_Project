@@ -22,7 +22,6 @@ class Address(models.Model):
         ordering = ['-is_default', '-created_at']
 
     def save(self, *args, **kwargs):
-        """Ensures only one default address per user."""
         if self.is_default:
             Address.objects.filter(user=self.user, is_default=True).update(is_default=False)
         super().save(*args, **kwargs)

@@ -3,7 +3,6 @@ from django.shortcuts import get_object_or_404
 from .models import Cart, CartItem
 from products.models import Product
 
-
 class CartItemResponseSerializer(serializers.ModelSerializer):
     product_id = serializers.UUIDField(source='product.id')
     product_name = serializers.CharField(source='product.name')
@@ -32,7 +31,6 @@ class AddCartItemSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(default=1)
 
     def validate(self, data):
-        """Validates product existence and stock availability."""
         request = self.context.get('request')
         user = getattr(request, 'auth_user', None)
 
@@ -68,7 +66,6 @@ class AddCartItemSerializer(serializers.Serializer):
         return data
 
     def create(self, validated_data):
-        """Handles creating or updating the cart item."""
         cart = validated_data['cart']
         product = validated_data['product']
         quantity = validated_data['quantity']
@@ -96,7 +93,6 @@ class UpdateCartItemSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        """Check stock for the new quantity."""
         new_quantity = data['quantity']
         cart_item = self.instance
         

@@ -52,7 +52,6 @@ class ViewCartView(APIView):
 
 
 class CartItemDetailView(APIView):
-    
     def delete(self, request, item_id):
         user = getattr(request, 'auth_user', None)
         if not user: 

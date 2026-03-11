@@ -14,13 +14,11 @@ class Cart(models.Model):
 
     @property
     def get_cart_total(self):
-        """Calculates total price for all items in the cart using discounted prices."""
         items = self.items.select_related('product').all()
         return sum(item.get_total for item in items)
 
     @property
     def get_cart_items_count(self):
-        """Returns total quantity of items in the cart."""
         return sum(item.quantity for item in self.items.all())
 
 
@@ -39,14 +37,12 @@ class CartItem(models.Model):
 
     @property
     def get_total(self):
-        """Calculates price * quantity, respecting discounts."""
         if self.product:
             return self.product.current_price * self.quantity
         return 0
 
     @property
     def is_stock_sufficient(self):
-        """Checks if the requested quantity is available in stock."""
         if self.product:
             return self.product.stock >= self.quantity
         return False

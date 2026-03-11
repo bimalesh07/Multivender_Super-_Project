@@ -35,12 +35,7 @@ class AddToWishlistView(APIView):
         
         logger.info("Wishlist item added: '%s' by %s", product.name, user.email)
         return Response({
-         "message": 
-         f"'{
-             product.name,
-             product.description 
-                        
-            }' added to wishlist successfully"
+            "message": f"'{product.name}' added to wishlist successfully"
         }, status=status.HTTP_201_CREATED)
 
 

@@ -15,7 +15,7 @@ class PublicProductListView(APIView):
             search_query = request.query_params.get('search', '').strip()
             products = Product.objects.filter(is_approved=True, is_active=True)
             if search_query:
-                products = products.filter(Q(name__icontains=search_query) | Q(description__icontains=search_query))
+                products = products.filter(Q(name__icontains=search_query) |Q(description__icontains=search_query))
                 logger.info("Product search: '%s' — %d results", search_query, products.count())
             products = products.order_by('-created_at')
 

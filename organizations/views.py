@@ -40,8 +40,10 @@ class CreateOrganizationView(APIView):
         )
 
         logger.info("Organization created: '%s' (ID: %s) with admin %s", org_name, organization.id, admin_email)
+
         return Response({
             "message": "Organization & Admin created successfully",
             "organization_id": str(organization.id),
-            "admin_id": str(admin.id)
+            "admin_id": str(admin.id),
+            "Org_Name": organization.name
         }, status=201)

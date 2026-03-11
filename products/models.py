@@ -49,13 +49,11 @@ class Product(models.Model):
 
     @property
     def current_price(self):
-        """Returns the best price available for the customer."""
         if self.discount_price and self.discount_price < self.price:
             return self.discount_price
         return self.price
 
     def save(self, *args, **kwargs):
-        """Custom save logic to handle stock status and price validation."""
         self.is_in_stock = self.stock > 0
         
         if self.discount_price and self.discount_price >= self.price:
